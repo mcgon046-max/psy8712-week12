@@ -9,6 +9,7 @@ output: html_document
 
 ```{r message = FALSE}
 library(tidyverse)
+library(tidytext)
 library(tm)
 library(jsonlite)
 library(stm)
@@ -81,4 +82,55 @@ compare_them <- function(corp1, corp2) {
 compare_them(io_corpus_original, io_corpus)
 
 # Multiple checks show that this works
+
+# Used tidy text in order to make sure the id's match (needed for joining)
+io_tidy <- io_corpus |>
+  tidy() |>
+  select(doc_id = id, text = text)
+
+# Unigrams and bigrams 
+io_tokens <- bind_rows(
+  io_tidy |> unnest_tokens(word, text, token = "words"), # Unigram 
+  io_tidy |> unnest_tokens(word, text, token = "ngrams", n = 2) #bigram
+) |>
+  drop_na(word)
+
+# Initial DTM
+io_dtm <- io_tokens |>
+  count(doc_id, word) |>
+  cast_dtm(doc_id, word, n) # Makes sure its a dtm 
+
+n_docs <- nrow(io_dtm) # 991 cases 
+
+# Required k range 
+k_min <- n_docs / 3
+k_max <- n_docs / 2
+
+# io_slim creation as per assigment 
+io_slim_dtm <- removeSparseTerms(io_dtm, 0.9) # deletes any word missing from 98.5% of docs NOTE: didn't change much 
+```
+
+# Visualization 
+
+```{r}
+# Wordcloud to check cleaning and viz these data
+wordcloud(
+  words = colnames(as.matrix(io_slim_dtm)), 
+  freq = colSums(as.matrix(io_slim_dtm)), 
+  max.words = 50
+)
+```
+
+# Analysis 
+
+```{r}
+# Seed for reproducibility 
+set.seed(42)
+
+# Create stm data for later steps 
+io_stm_data <- tidy(io_slim_dtm) |>
+  cast_sparse(document, term, count)
+
+# LDA topic creation based on word cloud 
+lda_model <- stm(io_stm_data, K = 6, verbose = FALSE)
 ```
