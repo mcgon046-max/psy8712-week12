@@ -231,4 +231,92 @@ model_combined_en <- train(
   trControl = train_control,
   tuneLength = 10
 )
+
+# Performance 
+
+## Function to get model metrics
+get_model_metrics <- function(model, test_data, model_name) {
+  
+
+  best_tune_idx <- as.numeric(rownames(model$bestTune)) # best training results
+  cv_metrics <- model$results[best_tune_idx, ] # Row w best results 
+  
+  preds <- predict(model, test_data) # Holdout results
+  holdout_metrics <- postResample(preds, test_data$upvotes)
+  
+  tibble(
+    Model = model_name,
+    Set = c("Training (CV)", "Holdout"),
+    RMSE = c(cv_metrics$RMSE, holdout_metrics[["RMSE"]]),
+    Rsquared = c(cv_metrics$Rsquared, holdout_metrics[["Rsquared"]])
+  ) # Made into tibble
+}
+
+performance_comparison_tbl <- bind_rows(
+  get_model_metrics(model_tokens_en, test_set, "Tokens Only"),
+  get_model_metrics(model_combined_en, test_set, "Tokens + Topics")
+)
+
+print(performance_comparison_tbl)
+
+# Trying with linear model 
+# Model 1: Token-only (Standard Linear Model)
+model_tokens_lm <- train(
+  upvotes ~ . - topic, 
+  data = train_set, 
+  method = "lm", 
+  trControl = train_control
+)
+
+# Model 2: Tokens + Topics (Standard Linear Model)
+model_combined_lm <- train(
+  upvotes ~ ., 
+  data = train_set, 
+  method = "lm", 
+  trControl = train_control
+)
+
+performance_comparison_tbl_lm <- bind_rows(
+  get_model_metrics(model_tokens_lm, test_set, "Tokens Only"),
+  get_model_metrics(model_combined_lm, test_set, "Tokens + Topics")
+)
+
+print(performance_comparison_tbl_lm)
+
+# Model comparision outputs (commented out) 
+
+# A tibble: 4 × 4 (Linear model)
+#   Model           Set            RMSE Rsquared
+#   <chr>           <chr>         <dbl>    <dbl>
+# 1 Tokens Only     Training (CV)  24.6   0.0352
+# 2 Tokens Only     Holdout        23.5   0.0543
+# 3 Tokens + Topics Training (CV)  24.8   0.0943
+# 4 Tokens + Topics Holdout        25.3   0.0387
+
+# # A tibble: 4 × 4 (Elastic Net)
+#   Model           Set            RMSE Rsquared
+#   <chr>           <chr>         <dbl>    <dbl>
+# 1 Tokens Only     Training (CV)  21.3  0.0217 
+# 2 Tokens Only     Holdout        23.1  0.00165
+# 3 Tokens + Topics Training (CV)  20.9  0.0182 
+# 4 Tokens + Topics Holdout        23.1  0.00165
+
+# Interpretation:
+## At first, I tried to use elastic net in order to see the differences between 
+## the models, this is because, due to the high number of predictors, it made 
+## sense that some ought to be zeroed out or reduced in magnitude for prediction.
+## Unfortunately, it seems this zeroed out the topics we were meant to model,
+## which is outside what was asked for this assignment. Thus, I moved to an OLS
+## linear model in order to adhere to this requirement. Unfortunately here, this 
+## resulted in over fitting. The R^2 of both approaches are negligible and the 
+## RMSE is very high, thus, we are NOT seeing good prediction increases by 
+## modeling these topics. For reference, for this subreddit, a RMSE of around 20 
+## upvotes is huge when this type of post would be very successful. 
+## Further, the elastic net decision to remove topics 
+## may have been the right one, we do not appear to gain any prediction from the
+## topics I selected. It appears that, at least statistically, these topics
+## capture random noise when it comes to the prediction of upvotes. I'm sure
+## there are many other factors at play for what's successful on this subreddit
+## than just the topic. 
+
 ```
