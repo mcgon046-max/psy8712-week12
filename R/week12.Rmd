@@ -190,4 +190,45 @@ topics_tbl <- tidytext::tidy(lda_model, matrix = "theta") |>
 ## Gemini and it gave quite clean labels. I know we discussed this as a human 
 ## reasoning task that has yet to be proven as AI-doable, but due to the vector 
 ## embeddings of language in LLMs, this is a task I felt it was well-suited for. 
+
+
+# Machine Learning 
+## decided on elastic net here due to the overwhelming number of predictors 
+
+## Data prep for ml 
+dtm_matrix <- as.matrix(io_slim_dtm) |> 
+  as_tibble() |>
+  mutate(doc_id = as.numeric(rownames(as.matrix(io_slim_dtm)))) # making the DTM into a matrix and then a tibble for caret to work with 
+
+### Merging topics, token counts, upvotes
+ml_data <- dtm_matrix |>
+  inner_join(topics_tbl |> select(doc_id, topic, upvotes), by = "doc_id") |> # Join on doc_id
+  select(-doc_id) |> # don't need after join  
+  mutate(topic = as.factor(topic)) # making sure the topic is a factor 
+
+### Holdout split 
+train_index <- createDataPartition(ml_data$upvotes, p = 0.8, list = FALSE) # 80/20 split 
+train_set <- ml_data[train_index, ]
+test_set <- ml_data[-train_index, ]
+
+## Model training 
+train_control <- trainControl(method = "cv", number = 10) # 10-fold CV as required 
+
+### Model 1: token only EN
+model_tokens_en <- train(
+  upvotes ~ . - topic, # gets rid of topic "-topic"
+  data = train_set, 
+  method = "glmnet", 
+  trControl = train_control,
+  tuneLength = 10 # 10 combinations of alpha and lambda 
+)
+
+### Model 2: Toeken and topics EN
+model_combined_en <- train(
+  upvotes ~ ., 
+  data = train_set, 
+  method = "glmnet", 
+  trControl = train_control,
+  tuneLength = 10
+)
 ```
