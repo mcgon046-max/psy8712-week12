@@ -131,23 +131,38 @@ set.seed(42)
 io_stm_data <- tidy(io_slim_dtm) |>
   cast_sparse(document, term, count)
 
-# LDA topic creation based on word cloud 
-lda_model <- stm(io_stm_data, K = 6, verbose = FALSE)
+# LDA topic creation based on word cloud and spot checking 
+lda_model <- stm(io_stm_data, K = 8, verbose = FALSE)
 
 
 # Creation of topics tbl 
 topics_tbl <- tidytext::tidy(lda_model, matrix = "theta") |>
-  group_by(document) |>
-  slice_max(gamma, n = 1) |>
-  ungroup() |>
-  mutate(doc_id = as.numeric(document)) |>
-  # Re-join to original data
+  group_by(document) |> # Grouping by document to find most likely topic 
+  slice_max(gamma, n = 1) |> # Finding highest gamma (probability)
+  ungroup() |> 
+  mutate(doc_id = as.numeric(document)) |> # Makes sure ids are numeric for join 
   inner_join(
     tibble(
       doc_id = 1:nrow(week12_tbl),
       original = week12_tbl$title,
       upvotes = week12_tbl$upvotes
-    ),
-    by = "doc_id"
-  )
+    ), 
+    by = "doc_id" # Rejoin to original tibble 
+  ) |>
+  mutate(
+    topic = topic,
+    probability = gamma,
+    topic_label = case_when(
+      topic == 1 ~ "Recurring Biweekly Discussions",
+      topic == 2 ~ "Master's & Assessment Fieldwork",
+      topic == 3 ~ "Job Search & Career Resources",
+      topic == 4 ~ "Grad School & Market Entry",
+      topic == 5 ~ "PhD, HR & Data Analysis",
+      topic == 6 ~ "Internship Advice",
+      topic == 7 ~ "Research, AI & Performance",
+      topic == 8 ~ "People Analytics & Degree Transition"
+    ) # Topics based on "labelTopics" highest prob and FREX
+  ) |>
+  drop_na(original) |> # Removes rows where text is missing
+  select(doc_id, original, topic, topic_label, probability, upvotes) # Selects cols based on assignment 
 ```
