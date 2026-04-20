@@ -119,6 +119,12 @@ wordcloud(
   freq = colSums(as.matrix(io_slim_dtm)), 
   max.words = 50
 )
+
+# Word cloud interpretation
+## This word cloud shows that the pre-processing steps were successful, that is,
+## words such as "IO" and "Psychology" are not present. Further, they show that 
+## there are general topics like career advice (including grad school) and 
+## technical skills. It also shows the prevalence of the biweekly discussions. 
 ```
 
 # Analysis 
@@ -165,4 +171,23 @@ topics_tbl <- tidytext::tidy(lda_model, matrix = "theta") |>
   ) |>
   drop_na(original) |> # Removes rows where text is missing
   select(doc_id, original, topic, topic_label, probability, upvotes) # Selects cols based on assignment 
+
+# Topic selection questions: 
+## 1: At first, based on the word cloud, I selected a lower K which
+## unfortunately collapsed topics into non-comprehensible content areas. So, I 
+## sequentially increased the k until the topics made more sense. The clearest
+## indication that the topics were distinct enough was when bi-weekly
+## discussions became their own topic and weren't a "general advice" topic. 
+## Although, I'm sure there is a more rigorous way to choose topics here by
+## testing fit using LDA, but this made the most sense to me. As mentioned above,
+## I used the highest prob and FREX to make these judgement. 
+
+## 2: Finally, when it came to the actual labels, I had some ideas about what to 
+## label them, but the actual cleanest labels were difficult to ascertain. For 
+## instance, I knew that bi-weekly discussions would be a topic, as with people
+## analytics, but career advice was loaded onto many different topics so I 
+## struggled with this. Finally, I checked my preliminary topic labels with
+## Gemini and it gave quite clean labels. I know we discussed this as a human 
+## reasoning task that has yet to be proven as AI-doable, but due to the vector 
+## embeddings of language in LLMs, this is a task I felt it was well-suited for. 
 ```
