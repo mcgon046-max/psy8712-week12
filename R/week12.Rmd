@@ -113,7 +113,7 @@ io_slim_dtm <- removeSparseTerms(io_dtm, 0.9) # deletes any word missing from 98
 # Visualization 
 
 ```{r}
-# Wordcloud to check cleaning and viz these data
+# Word cloud to check cleaning and viz these data
 wordcloud(
   words = colnames(as.matrix(io_slim_dtm)), 
   freq = colSums(as.matrix(io_slim_dtm)), 
@@ -133,4 +133,21 @@ io_stm_data <- tidy(io_slim_dtm) |>
 
 # LDA topic creation based on word cloud 
 lda_model <- stm(io_stm_data, K = 6, verbose = FALSE)
+
+
+# Creation of topics tbl 
+topics_tbl <- tidytext::tidy(lda_model, matrix = "theta") |>
+  group_by(document) |>
+  slice_max(gamma, n = 1) |>
+  ungroup() |>
+  mutate(doc_id = as.numeric(document)) |>
+  # Re-join to original data
+  inner_join(
+    tibble(
+      doc_id = 1:nrow(week12_tbl),
+      original = week12_tbl$title,
+      upvotes = week12_tbl$upvotes
+    ),
+    by = "doc_id"
+  )
 ```
