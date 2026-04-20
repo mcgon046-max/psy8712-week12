@@ -1,0 +1,84 @@
+---
+title: "week12"
+author: "Patrick McGonagle"
+date: "2026-04-20"
+output: html_document
+---
+
+# Libraries 
+
+```{r message = FALSE}
+library(tidyverse)
+library(tm)
+library(jsonlite)
+library(stm)
+library(caret)
+library(textclean)
+library(textstem)
+library(httr)
+library(wordcloud)
+# Didn't use qdap due to insane java troubleshooting, tried to accomplish the same without 
+```
+
+# Data Import and Cleaning 
+
+```{r}
+# USED AI - RedditExtractoR didn't allow me to pull the entire last year, ran into misc errors 
+
+# all_posts <- list()
+# next_page <- ""
+# for (i in 1:10) { # Loop 
+#   request <- GET(
+#     url = "https://www.reddit.com/r/IOPsychology/new.json",
+#     query = list(limit = 100, after = next_page),
+#     add_headers(`User-agent` = "psy8712_task")
+#   ) # Requests from URL 
+#   content <- fromJSON(content(request, as = "text")) # Pulls the JSON from API
+#   all_posts[[i]] <- content$data$children$data # getting content for for loop 
+#   next_page <- content$data$after # Saying "go to next page"
+#   if (is.null(next_page)) break #Break so it doens't run ad infintum 
+# }
+# week12_raw_tbl <- bind_rows(all_posts) |>
+#   select(upvotes = ups, title) 
+# saveRDS(week12_raw_tbl, "week12_tbl.rds") # Final data import 
+
+# Commented out for loop after first run
+
+# Tibble creation 
+week12_tbl <- readRDS("week12_tbl.rds") |>
+  as_tibble()
+
+# Original corpus 
+io_corpus_original <- VCorpus(VectorSource(week12_tbl$title))
+
+# Remove IO terms using function (used AI regex)
+remove_io_terms <- function(x) {
+  gsub("i[\\/-]?o|industrial[\\s-]?organizational|psychology|psych", "", x, ignore.case = TRUE)
+}
+
+# Pre-processing 
+io_corpus <- io_corpus_original |>
+  tm_map(content_transformer(tolower)) |> # Everything lowercase 
+  tm_map(content_transformer(remove_io_terms)) |> # Removing "IO" terms 
+  tm_map(content_transformer(replace_contraction)) |> # getting rid of contradictions (i.e., "dont")
+  tm_map(content_transformer(replace_symbol)) |> # Removing symbols like & and @
+  tm_map(removePunctuation) |> # Getting rid of punctuation
+  tm_map(removeNumbers) |> # Getting rid of numbers 
+  tm_map(removeWords, stopwords("en")) |> # Removing stop words 
+  tm_map(content_transformer(lemmatize_strings)) # lemmetizing 
+
+# Spot checking shows steps were effective 
+
+# Random row check function 
+compare_them <- function(corp1, corp2) {
+  idx <- 1:length(corp2) |> 
+    sample(1) # Generate a random index 
+  cat("Original Title:", corp1[[idx]]$content, "\n") # Print original 
+  cat("Cleaned Title:", corp2[[idx]]$content, "\n") # print cleaned 
+}
+
+# Test
+compare_them(io_corpus_original, io_corpus)
+
+# Multiple checks show that this works
+```
